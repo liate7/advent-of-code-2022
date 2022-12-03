@@ -37,3 +37,20 @@
        (map item-priority)
        (sum)))
 
+(define group-rucksacks (curry segment 3))
+
+(define (group-badge group)
+  (delete-duplicates
+   (apply lset-intersection equal?
+          (map (curry apply append)
+               group))
+   equal?))
+
+(define (star-2 lines)
+  (->> (remove string-null? lines)
+       (map line->rucksack)
+       (group-rucksacks)
+       (map group-badge)
+       (flatten)
+       (map item-priority)
+       (sum)))

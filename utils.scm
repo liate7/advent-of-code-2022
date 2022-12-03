@@ -6,7 +6,8 @@
   #:use-module (srfi srfi-1)
   #:use-module (pipe))
 
-(define-public (flatten lst) (list-transduce tflatten rcons lst))
+(define-public (flatten lst)
+  (list-transduce tflatten rcons lst))
 
 (define-public (get-all-lines port)
   (string-split
@@ -19,3 +20,7 @@
 (define-public (curry proc . original)
   (lambda after
     (apply proc (append original after))))
+
+(define-public (segment n lst)
+  "Break up a list in to segments of N, based on `tsegment'"
+  (list-transduce (tsegment n) rcons lst))
