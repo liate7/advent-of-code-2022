@@ -15,3 +15,7 @@
 
 (define-public (sum lst)
   (apply + lst))
+
+(define-public (curry proc . original)
+  (lambda after
+    (apply proc (append original after))))
