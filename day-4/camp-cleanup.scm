@@ -34,5 +34,19 @@
        (filter pair-assignment-fully-contains)
        (length)))
 
-(in-test-suite ("Star 1")
-  (test-equal 2 (star-1 test-input)))
+
+
+(define* (pair-assignment-redundant pair #:key (equal equal?))
+  (not (null? (lset-intersection equal (first pair) (second pair)))))
+
+(define (star-2 lines)
+  (->> lines
+       (remove string-null?)
+       (map line->pair-assignment)
+       (filter pair-assignment-redundant)
+       (length)))
+
+(define (tests)
+  (in-test-suite ("Day 4: Camp Cleanup")
+    (test-equal 2 (star-1 test-input))
+    (test-equal 4 (star-2 test-input))))
