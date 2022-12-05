@@ -1,4 +1,4 @@
-(define-module (advent-of-code-2022 test)
+(define-module (test)
   #:use-module (srfi srfi-64)
   #:export (with-test-suite in-test-suite)
   #:re-export (test-assert test-eqv test-equal test-eq

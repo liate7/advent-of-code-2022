@@ -1,7 +1,7 @@
-(define-module (advent-of-code-2022 day-4 camp-cleanup)
-  #:use-module (advent-of-code-2022 utils)
+(define-module (day-4 camp-cleanup)
+  #:use-module (utils)
   #:use-module (srfi srfi-1)
-  #:use-module (advent-of-code-2022 test)
+  #:use-module (test)
   #:use-module (ice-9 match)
   #:use-module (pipe))
 

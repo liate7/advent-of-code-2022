@@ -1,4 +1,4 @@
-(define-module (advent-of-code-2022 utils)
+(define-module (utils)
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 format)
   #:use-module (ice-9 ftw)

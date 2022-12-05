@@ -1,5 +1,5 @@
-(define-module (advent-of-code-2022 day-1 elf-calories)
-  #:use-module (advent-of-code-2022 utils)
+(define-module (day-1 elf-calories)
+  #:use-module (utils)
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 format)
   #:use-module (ice-9 ftw)

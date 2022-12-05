@@ -1,5 +1,5 @@
-(define-module (advent-of-code-2022 day-2 rock-paper-scissors)
-  #:use-module (advent-of-code-2022 utils)
+(define-module (day-2 rock-paper-scissors)
+  #:use-module (utils)
   #:use-module (srfi srfi-1)
   #:use-module (ice-9 match))
 
