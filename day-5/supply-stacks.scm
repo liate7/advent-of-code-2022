@@ -24,7 +24,8 @@
 
 (define (tests)
   (in-test-suite ("Day 5: Supply Stacks")
-    (test-equal "CMZ" (star-1 test-input))))
+    (test-equal "CMZ" (star-1 test-input))
+    (test-equal "MCD" (star-2 test-input))))
 
 
 
@@ -84,7 +85,7 @@
 (define (move stacks amount from to)
   (vector-map (lambda (i stack)
                 (cond ((= i from) (drop stack amount))
-                      ((= i to) (append (reverse
+                      ((= i to) (append ((if (cm9001?) identity reverse)
                                          (take (vector-ref stacks from)
                                                amount))
                                         stack))
@@ -108,6 +109,18 @@
 (define (star-1 lines)
   (->> (receive (stacks lines) (parse-original-state lines)
          (crane-eval-lines lines stacks))
+       (vector-map (lambda (i pair) (car pair)))
+       (vector->list)
+       (list->string)))
+
+
+
+(define cm9001? (make-parameter #f))
+
+(define (star-2 lines)
+  (->> (parameterize ((cm9001? #t))
+         (receive (stacks lines) (parse-original-state lines)
+           (crane-eval-lines lines stacks)))
        (vector-map (lambda (i pair) (car pair)))
        (vector->list)
        (list->string)))
