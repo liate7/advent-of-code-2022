@@ -34,3 +34,23 @@ The resulting function is properly short-circuiting, like normal and."
       (or (null? procs)
           (and (apply (car procs) args)
                (rec (cdr procs)))))))
+
+(export if-let)
+(define-syntax if-let
+  (syntax-rules ()
+    ((_ (var form)
+        then
+        else)
+     (let ((var form))
+       (if var
+           then
+           else)))))
+
+(export when-let)
+(define-syntax when-let
+  (syntax-rules ()
+    ((_ (var form)
+        body ...)
+     (let ((var form))
+       (when var
+         body ...)))))
