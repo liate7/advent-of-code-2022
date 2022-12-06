@@ -24,3 +24,13 @@
 (define-public (segment n lst)
   "Break up a list in to segments of N, based on `tsegment'"
   (list-transduce (tsegment n) rcons lst))
+
+(define-public (proc-and . procs)
+  "Returns a predicate which is true if all members of PROCS are true with the inputs.
+
+The resulting function is properly short-circuiting, like normal and."
+  (lambda args
+    (let rec ((procs procs))
+      (or (null? procs)
+          (and (apply (car procs) args)
+               (rec (cdr procs)))))))

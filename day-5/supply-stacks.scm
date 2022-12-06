@@ -29,6 +29,8 @@
 
 
 
+;;; Reading and parsing the header
+
 (define (cleanup-crate crate)
   (match crate
     ((#\[ char #\] #\space ...) char)
@@ -50,55 +52,72 @@
 
 (define (parse-original-state lines)
   "Generates a vector of stacks as described by the original state in the start of LINES."
+  (define (read-crate-row line)
+    (list->vector
+     ;; Each crate is 3 characters wide, plus a space divider
+     (string-transduce (compose (tsegment 4)
+                                (tmap cleanup-crate))
+                       rcons
+                       line)))
+  (define (label-number-of-stacks line)
+    (->> (string-split line char-set:whitespace)
+         (remove string-null?)
+         (length)))
   (define (read-header lines acc)
     (cond ((or (null? lines)
                (string-null? (car lines)))
            (values (if (null? acc) acc
-                       (cons (make-vector (vector-length (car acc))
-                                          '())
+                       ;; If we saw crate rows without the bottom labels,
+                       ;; just make one ourselves.
+                       (cons (make-vector
+                              (vector-length (car acc))
+                              '())
                              acc))
                    lines))
+          ;; If the line contains #\[, it's a crate row definition.
+          ;; Return a vector of crates in this row.
           ((string-index (car lines) #\[)
            (read-header (cdr lines)
-                        (cons (list->vector
-                               (string-transduce (compose (tsegment 4)
-                                                          (tmap cleanup-crate))
-                                                 rcons
-                                                 (car lines)))
+                        (cons (read-crate-row (car lines))
                               acc)))
+          ;; If it's all numbers and whitespace, it's the bottom labels.
+          ;; Make the initial vector of stacks
           ((string-every (char-set-union char-set:digit char-set:whitespace)
                          (car lines))
-           (values (cons (make-vector (->> (string-split (car lines) char-set:whitespace)
-                                           (remove string-null?)
-                                           (length))
-                                      '())
+           (values (cons (make-vector
+                          (label-number-of-stacks (car lines))
+                          '())
                          acc)
                    (cdr lines)))))
   (receive (header rest) (read-header lines '())
     (values (header->initial-state header)
             rest)))
 
+;;; Evaluating the instructions
+
 (define (crane-read line)
   (call-with-input-string (string-append "(" line ")")
     read))
 
 (define (move stacks amount from to)
-  (vector-map (lambda (i stack)
-                (cond ((= i from) (drop stack amount))
-                      ((= i to) (append ((if (cm9001?) identity reverse)
-                                         (take (vector-ref stacks from)
-                                               amount))
-                                        stack))
-                      (else stack)))
-              stacks))
+  (define (move-mapper i stack)
+    (cond ((= i from)
+           (drop stack amount))
+          ((= i to)
+           (append ((if (cm9001?) identity reverse)
+                    (take (vector-ref stacks from)
+                          amount))
+                   stack))
+          (else stack)))
+  (vector-map move-mapper stacks))
 
 (define (crane-eval line stacks)
   (define (stack-n-exists n)
     (< (1- n) (vector-length stacks)))
   (match line
     (('move (? number? amount)
-            'from (? number? (? stack-n-exists) from)
-            'to   (? number? (? stack-n-exists) to))
+            'from (? (proc-and number? stack-n-exists) from)
+            'to   (? (proc-and number? stack-n-exists) to))
      (when debug (format #t "~a~%" line))
      (move stacks amount (1- from) (1- to)))
     (() stacks)))
