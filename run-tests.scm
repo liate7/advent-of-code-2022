@@ -19,7 +19,7 @@
   (define (enter? name stat result)
 	(not (equal? name ".git")))
   (define (leaf name stat result)
-	(if (equal? (string-take-right name 4) ".scm")
+	(if (string-suffix? ".scm" name)
 		(match result
 		  (((siblings ...) rest ...)
 		   (cons (cons (list (string->symbol
