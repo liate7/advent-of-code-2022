@@ -7,6 +7,7 @@
   #:use-module (ice-9 match)
   #:use-module (ice-9 ftw)
   #:use-module (utils)
+  #:use-module (test)
   #:use-module (srfi srfi-1)
   #:use-module (pipe)
   #:export (run-all-tests main))
@@ -41,12 +42,8 @@
 (define (run-all-tests)
   (->> (get-module-names-under path)
        (map cdr)
-       (map (lambda (lst)
-              (resolve-module lst #:ensure #f)))
-       (for-each (lambda (module)
-                   (when module
-                     (when-let (var (module-variable module 'tests))
-                       ((variable-ref var))))))))
+       (map resolve-module)
+       (for-each run-module-tests)))
 
 (define (main . args)
   (run-all-tests))

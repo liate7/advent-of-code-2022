@@ -1,6 +1,7 @@
 (define-module (test)
   #:use-module (srfi srfi-64)
-  #:export (with-test-suite in-test-suite)
+  #:use-module (utils)
+  #:export (with-test-suite in-test-suite run-module-tests)
   #:re-export (test-assert test-eqv test-equal test-eq
                            test-approximate test-error
                            test-read-eval-string))
@@ -21,6 +22,6 @@
                         body ...)
                       args ...))))
 
-;;; Local Variables:
-;;; eval: (put 'in-test-suite 'scheme-indent-function 'defun)
-;;; End:
+(define (run-module-tests module)
+  (when-let (tests-var (module-variable module 'tests))
+      ((variable-ref tests-var))))
