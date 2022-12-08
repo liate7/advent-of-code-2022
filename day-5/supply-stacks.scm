@@ -143,3 +143,69 @@
        (vector-map (lambda (i pair) (car pair)))
        (vector->list)
        (list->string)))
+
+
+;;; Objecty interlude
+
+(define (^crane placement-orderer stacks)
+  (define (stack-n-exists n)
+    (< (1- n) (vector-length stacks)))
+  (define self
+	(match-lambda*
+      (('move amount from to)
+	   (let ((to-move (take (vector-ref stacks from) amount)))
+         (vector-mod! stacks
+                      from (λ (stack) (drop stack amount))
+		              to (curry append (placement-orderer to-move)))
+		 self))
+
+      (('eval ('move (? number? amount)
+                     'from (? (proc-and number? stack-n-exists) from)
+                     'to   (? (proc-and number? stack-n-exists) to)))
+       (self 'move amount (1- from) (1- to)))
+      (('eval ())
+       self)
+
+      (('eval-lines lines)
+       (for-each (compose (curry self 'eval)
+                          crane-read)
+                 lines)
+       self)
+
+      ;; To get desired result
+	  ('(peek all)
+	   (vector-map (λ (i stack) (car stack))
+				   stacks))
+
+      ;; Just for completeness
+	  (('peek n)      (car (vector-ref stacks n)))
+	  (('stack-state) (vector-copy stacks))
+
+      (('pop n)
+       (let ((top (car (vector-ref stacks n))))
+         (vector-mod! stacks n cdr)
+         top))))
+  self)
+
+(define ^cm9000 (curry ^crane reverse))
+(define ^cm9001 (curry ^crane identity))
+
+(define* (read-crane lines #:key (ctor ^cm9000))
+  (receive (stacks rest) (parse-original-state lines)
+    (values (ctor stacks)
+            rest)))
+
+(define (object-test ctor lines)
+  (receive (crane lines) (read-crane lines #:ctor ctor)
+    (crane 'eval-lines lines)
+    (->> (crane 'peek 'all)
+         (vector->list)
+         (list->string))))
+
+(define object-star-1 (curry object-test ^cm9000))
+(define object-star-2 (curry object-test ^cm9001))
+
+(define (object-tests)
+  (in-test-suite ("Day 5: Supply Stacks")
+    (test-equal "CMZ" (object-star-1 test-input))
+    (test-equal "MCD" (object-star-2 test-input))))

@@ -2,8 +2,10 @@
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 format)
   #:use-module (ice-9 ftw)
+  #:use-module (ice-9 match)
   #:use-module (srfi srfi-171)
   #:use-module (srfi srfi-1)
+  #:use-module (srfi srfi-43)
   #:use-module (pipe))
 
 (define-public (flatten lst)
@@ -60,3 +62,33 @@ The resulting function is properly short-circuiting, like normal and."
               (remove (compose (curry equal? key)
                                car)
                       alist)))
+
+(define-public plist->alist
+  (match-lambda
+    ((key val . rest)
+     (alist-cons key val
+                 (if (< (length rest) 2)
+                     '()
+                     (plist->alist rest))))))
+
+(define-public (vector-mod! vect i proc . rest)
+  (vector-set! vect i
+               (proc (vector-ref vect i)))
+  (if (null? rest) vect
+      (apply vector-modify! vect rest)))
+
+(define-public (vector-mod vect i proc . rest)
+  (if (null? rest)
+      (vector-map (lambda (index val)
+                    (if (= index i)
+                        (proc val)
+                        val))
+                  vect)
+      (let ((index-functions
+             (alist-cons i proc
+                         (plist->alist rest))))
+        (vector-map (lambda (index val)
+                      (if-let (proc (assoc-ref index-functions index))
+                              (proc val)
+                              val))
+                    vect))))
