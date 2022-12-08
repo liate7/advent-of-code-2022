@@ -54,3 +54,9 @@ The resulting function is properly short-circuiting, like normal and."
      (let ((var form))
        (when var
          body ...)))))
+
+(define-public (assoc-set alist key val)
+  (alist-cons key val
+              (remove (compose (curry equal? key)
+                               car)
+                      alist)))
