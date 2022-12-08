@@ -33,7 +33,8 @@
 
 (define (tests)
   (in-test-suite ("Day 7: No Space Left On Device")
-    (test-equal (star-1 test-input) 95437)))
+    (test-equal (star-1 test-input) 95437)
+    (test-equal (star-2 test-input) 24933642)))
 
 
 
@@ -68,8 +69,10 @@
                   (("$" "cd" "..")
                    (vector (cdr lines) entries))
                   (("$" "cd" (? (curry unformed-directory-in? entries) dir))
-                   (match-let ((#(lines_ dir-entries) (read-sized-dir dir (cdr lines))))
-                     (rec (vector lines_ (assoc-set entries dir dir-entries))))))))))
+                   (match-let ((#(lines_ dir-entries)
+                                (read-sized-dir dir (cdr lines))))
+                     (rec (vector lines_
+                                  (assoc-set entries dir dir-entries))))))))))
 
 (define (recover-sized-file-tree lines)
   (match (tokenize-line (car lines))
@@ -93,11 +96,11 @@
      (match node
        ((name (? number?))
         (if (pred node)
-            (cons (list name) acc)
+            (cons node acc)
             acc))
        ((name . entries)
-        (append (map (curry cons name) (fold rec '() entries))
-                (if (pred node) (list (list name)) '())
+        (append (fold rec '() entries)
+                (if (pred node) (list node) '())
                 acc))))))
 
 (define (file-tree-ref file-tree path)
@@ -119,9 +122,30 @@
        #f)
       ((and node (name . entries))
        (< (file-tree-size node) 100000))))
-  (let ((tree (recover-sized-file-tree lines)))
-    (->> tree
-         (filter-file-tree small-directory?)
-         (map (compose file-tree-size
-                       (curry file-tree-ref tree)))
-         (sum))))
+  (->> (recover-sized-file-tree lines)
+       (filter-file-tree small-directory?)
+       (map file-tree-size)
+       (sum)))
+
+
+
+(define file-system-size 70000000)
+(define update-size 30000000)
+
+(define (star-2 lines)
+  (let* ((tree (recover-sized-file-tree lines))
+         (used-space (file-tree-size tree))
+         (free-space (- file-system-size used-space)))
+    (define (big-enough-directory? node)
+      (match node
+        ((name (? number?))
+         #f)
+        ((name . entries)
+         (> (+ free-space (file-tree-size node))
+            update-size))))
+    (-> (filter-file-tree big-enough-directory? tree)
+        (sort (lambda (l r)
+                (< (file-tree-size l)
+                   (file-tree-size r))))
+        (first)
+        (file-tree-size))))
