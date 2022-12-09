@@ -16,7 +16,8 @@
 
 (define (tests)
   (in-test-suite ("Day 8: Treetop Tree House")
-    (test-equal (star-1 test-input) 21)))
+    (test-equal (star-1 test-input) 21)
+    (test-equal (star-2 test-input) 8)))
 
 
 
@@ -33,11 +34,13 @@
 (define (indices-for-direction direction index dimensions)
   (match direction
     ('left
-     (map (curry list (car index))
-          (iota (cadr index))))
+     (reverse
+      (map (curry list (car index))
+           (iota (cadr index)))))
     ('above
-     (map (λ (x) (list x (cadr index)))
-          (iota (car index))))
+     (reverse
+      (map (λ (x) (list x (cadr index)))
+           (iota (car index)))))
     ('right
      (map (curry list (car index))
           (iota (- (cadr dimensions) (cadr index) 1)
@@ -54,15 +57,6 @@
              (< (apply array-ref tree-grid index) height-at))
            (indices-for-direction direction index dimensions))))
 
-(define (array-indices array)
-  (let ((ret (array-copy array)))
-    (array-index-map! ret
-                      list)
-    (->> ret
-         (array->list)
-         (flatten)
-         (segment (array-rank array)))))
-
 (define (array-map-indices proc array)
   (map proc (array-indices array)))
 
@@ -78,3 +72,24 @@
 
 
 
+(define (sight-line-in-direction tree-grid index direction)
+  (let ((height-at (apply array-ref tree-grid index)))
+    (let rec ((indices (indices-for-direction direction index (array-dimensions tree-grid))))
+      (cond ((null? indices) '())
+            ((>= (apply array-ref tree-grid (car indices))
+                 height-at)
+             (list (car indices)))
+            (else
+             (cons (car indices)
+                   (rec (cdr indices))))))))
+
+(define (star-2 lines)
+  (let ((grid (read-tree-grid lines)))
+    (->> grid
+         (array-map-indices
+          (lambda (idx)
+            (prod
+             (map (compose length
+                           (curry sight-line-in-direction grid idx))
+                  '(left right below above)))))
+         (apply max))))

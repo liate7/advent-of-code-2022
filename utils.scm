@@ -1,12 +1,13 @@
 (define-module (utils)
-  #:use-module (ice-9 textual-ports)
+  #:use-module (ice-9 arrays)
   #:use-module (ice-9 format)
   #:use-module (ice-9 ftw)
   #:use-module (ice-9 match)
-  #:use-module (srfi srfi-171)
+  #:use-module (ice-9 textual-ports)
+  #:use-module (pipe)
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-43)
-  #:use-module (pipe))
+  #:use-module (srfi srfi-43))
 
 (define-public (flatten lst)
   (list-transduce tflatten rcons lst))
@@ -18,6 +19,9 @@
 
 (define-public (sum lst)
   (apply + lst))
+
+(define-public (prod lst)
+  (apply * lst))
 
 (define-public (curry proc . original)
   (lambda after
@@ -92,3 +96,12 @@ The resulting function is properly short-circuiting, like normal and."
                               (proc val)
                               val))
                     vect))))
+
+(define (array-indices array)
+  (let ((ret (array-copy array)))
+    (array-index-map! ret
+                      list)
+    (->> ret
+         (array->list)
+         (flatten)
+         (segment (array-rank array)))))
