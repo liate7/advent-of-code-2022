@@ -1,4 +1,4 @@
-(define-module (day-4 camp-cleanup)
+(define-module (day-04 camp-cleanup)
   #:use-module (utils)
   #:use-module (srfi srfi-1)
   #:use-module (test)

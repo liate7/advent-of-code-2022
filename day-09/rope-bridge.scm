@@ -1,4 +1,4 @@
-(define-module (day-9 rope-bridge)
+(define-module (day-09 rope-bridge)
   #:use-module (test)
   #:use-module (utils)
   #:use-module (ice-9 match)

@@ -1,4 +1,4 @@
-(define-module (day-5 supply-stacks)
+(define-module (day-05 supply-stacks)
   #:use-module (test)
   #:use-module (utils)
   #:use-module (ice-9 match)

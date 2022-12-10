@@ -1,4 +1,4 @@
-(define-module (day-1 elf-calories)
+(define-module (day-01 elf-calories)
   #:use-module (utils)
   #:use-module (ice-9 textual-ports)
   #:use-module (ice-9 format)

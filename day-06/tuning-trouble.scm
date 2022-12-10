@@ -1,4 +1,4 @@
-(define-module (day-6 tuning-trouble)
+(define-module (day-06 tuning-trouble)
   #:use-module (test)
   #:use-module (utils)
   #:use-module (ice-9 match)

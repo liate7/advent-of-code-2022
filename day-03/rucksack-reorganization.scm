@@ -1,4 +1,4 @@
-(define-module (day-3 rucksack-reorganization)
+(define-module (day-03 rucksack-reorganization)
   #:use-module (utils)
   #:use-module (srfi srfi-1)
   #:use-module (ice-9 match)

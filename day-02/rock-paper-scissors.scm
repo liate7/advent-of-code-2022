@@ -1,4 +1,4 @@
-(define-module (day-2 rock-paper-scissors)
+(define-module (day-02 rock-paper-scissors)
   #:use-module (utils)
   #:use-module (srfi srfi-1)
   #:use-module (ice-9 match))

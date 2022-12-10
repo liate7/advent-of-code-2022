@@ -1,4 +1,4 @@
-(define-module (day-8 treetop-tree-house)
+(define-module (day-08 treetop-tree-house)
   #:use-module (test)
   #:use-module (utils)
   #:use-module (ice-9 match)

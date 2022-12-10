@@ -1,4 +1,4 @@
-(define-module (day-7 full-device)
+(define-module (day-07 full-device)
   #:use-module (test)
   #:use-module (utils)
   #:use-module (ice-9 match)
