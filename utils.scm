@@ -42,24 +42,17 @@ The resulting function is properly short-circuiting, like normal and."
                (rec (cdr procs)))))))
 
 (export if-let)
-(define-syntax if-let
-  (syntax-rules ()
-    ((_ (var form)
+(define-syntax-rule (if-let (var form) then else)
+  (let ((var form))
+    (if var
         then
-        else)
-     (let ((var form))
-       (if var
-           then
-           else)))))
+        else)))
 
 (export when-let)
-(define-syntax when-let
-  (syntax-rules ()
-    ((_ (var form)
-        body ...)
-     (let ((var form))
-       (when var
-         body ...)))))
+(define-syntax-rule (when-let (var form) body ...)
+  (let ((var form))
+    (when var
+      body ...)))
 
 (define-public (assoc-set alist key val)
   (alist-cons key val
