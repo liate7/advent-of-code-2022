@@ -7,7 +7,7 @@
   #:use-module (pipe)
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-43)
-  #:use-module (srfi srfi-43))
+  #:use-module (srfi srfi-171))
 
 (define-public (flatten lst)
   (list-transduce tflatten rcons lst))
@@ -79,7 +79,7 @@ The resulting function is properly short-circuiting, like normal and."
   (vector-set! vect i
                (proc (vector-ref vect i)))
   (if (null? rest) vect
-      (apply vector-modify! vect rest)))
+      (apply vector-mod! vect rest)))
 
 (define-public (vector-mod vect i proc . rest)
   (if (null? rest)
@@ -97,7 +97,7 @@ The resulting function is properly short-circuiting, like normal and."
                               val))
                     vect))))
 
-(define (array-indices array)
+(define-public (array-indices array)
   (let ((ret (array-copy array)))
     (array-index-map! ret
                       list)
@@ -105,3 +105,12 @@ The resulting function is properly short-circuiting, like normal and."
          (array->list)
          (flatten)
          (segment (array-rank array)))))
+
+(define-public (sign num)
+  (cond ((> num 0)   1)
+        ((< num 0)  -1)
+        ((zero? num) 0)))
+
+(define-public (repeat n thunk)
+  (for-each (λ (_ignore) (thunk))
+            (iota n)))
