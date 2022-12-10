@@ -3,23 +3,34 @@
   #:use-module (utils)
   #:use-module (ice-9 match)
   #:use-module (srfi srfi-1)
+  #:use-module (srfi srfi-43)
   #:use-module (pipe)
   #:use-module (oop goops))
 
-(define test-input
-  '("R 4"
-    "U 4"
-    "L 3"
-    "D 1"
-    "R 4"
-    "D 1"
-    "L 5"
-    "R 2"
-    ""))
+(define test-inputs
+  '(("R 4"
+     "U 4"
+     "L 3"
+     "D 1"
+     "R 4"
+     "D 1"
+     "L 5"
+     "R 2"
+     "")
+    ("R 5"
+     "U 8"
+     "L 8"
+     "D 3"
+     "R 17"
+     "D 10"
+     "L 25"
+     "U 20"
+     "")))
 
 (define (tests)
   (in-test-suite ("Day 9: Rope Bridge")
-    (test-equal (star-1 test-input) 13)))
+    (test-equal (star-1 (first test-inputs)) 13)
+    (test-equal (map star-2 test-inputs) '(1 36))))
 
 
 
@@ -95,7 +106,7 @@
              '()
              (locations rope)))
 
-(define (render-rope rope)
+(define-method (render-rope (rope <rope-sim>))
   (match-let (((max-x max-y) (hash-fold
                               (λ (key val acc)
                                 (map max key acc))
@@ -119,5 +130,82 @@
 
 (define (star-1 lines)
   (let ((rope (make-rope-sim)))
+    (eval-lines! rope lines)
+    (length (tail-visited-locations rope))))
+
+
+
+
+(define-class <long-rope-sim> (<rope-sim>)
+  (knots #:init-form (make-vector 10 '(0 0)) #:accessor knots)
+  (head-at #:allocation #:virtual
+           #:accessor head-at
+           #:slot-ref  (λ (rope)
+                         (vector-ref (knots rope) 0))
+           #:slot-set! (λ (rope val)
+                         (vector-set! (knots rope) 0 val)))
+  (tail-at #:allocation #:virtual
+           #:accessor tail-at
+           #:slot-ref  (λ (rope)
+                         (vector-ref (knots rope) (1- (vector-length (knots rope)))))
+           #:slot-set! (λ (rope val)
+                         (vector-set! (knots rope) (1- (vector-length (knots rope))) val))))
+
+(define* (make-long-rope-sim)
+  (let ((ret (make <long-rope-sim>)))
+    (hash-set! (locations ret) (tail-at ret) #t)
+    ret))
+
+(define-method (move-head! (rope <long-rope-sim>) direction)
+  (let* ((move (direction->move direction))
+         (new-head (map + (head-at rope) move)))
+    (set! (head-at rope) new-head)
+    (for-each
+     (λ (idx)
+       (vector-mod! (knots rope)
+                    idx (λ (pt)
+                          (new-tail-position
+                           (vector-ref (knots rope) (1- idx))
+                           pt))))
+     (iota (1- (vector-length (knots rope)))
+           1))
+    (hash-set! (locations rope) (tail-at rope) #t)))
+
+(define-method (render-rope (rope <long-rope-sim>))
+  (match-let (((max-x max-y)
+               (hash-fold
+                (λ (key val acc)
+                  (map max key acc))
+                (map max '(0 0)
+                     (vector->list (vector-map (curry map max)
+                                               (knots rope))))
+                (locations rope)))
+              ((min-x min-y)
+               (hash-fold
+                (λ (key val acc)
+                  (map min key acc))
+                (map min '(0 0)
+                     (vector->list (vector-map (curry map min)
+                                               (knots rope))))
+                (locations rope))))
+    (for-each
+     (λ (y)
+       (for-each
+        (λ (x)
+          (cond ((equal? (list x y) (head-at rope))
+                 (format #t "H"))
+                ((member (list x y) (cdr (vector->list (knots rope))))
+                 (format #t "~a" (vector-index (curry = (list x y)) (knots rope))))
+                ((hash-ref (locations rope) (list x y))
+                 (format #t "#"))
+                (else (format #t "."))))
+        (iota (1+ (- max-x min-x))))
+       (format #t "~%"))
+     (iota (1+ (- max-y min-y)) max-y -1))
+    (format #t "~%")))
+
+
+(define (star-2 lines)
+  (let ((rope (make-long-rope-sim)))
     (eval-lines! rope lines)
     (length (tail-visited-locations rope))))
