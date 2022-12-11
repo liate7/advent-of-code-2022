@@ -30,3 +30,37 @@
 
 
 
+(define (read-instruction line)
+  (call-with-input-string (string-append "(" line ")")
+    read))
+
+(define* (eval-instruction instr #:optional (signal-hist '(1)))
+  (let ((cur (car signal-hist)))
+    (match instr
+      (('addx (? number? num))
+       (cons* (+ cur num) cur signal-hist))
+      (('noop)
+       (cons cur signal-hist))
+      (() signal-hist))))
+
+(define (signal-history instrs)
+  (reverse (fold eval-instruction '(1) instrs)))
+
+(define (every-n-from from step lst)
+  (if (>= (length lst) from)
+      (let rec ((cur (list-cdr-ref lst from))
+                (n (+ step from))
+                (acc (list (* from (list-ref lst (1- from))))))
+        (if (>= (length cur) step)
+            (rec (list-cdr-ref cur step)
+                 (+ n step)
+                 (cons (* n (list-ref cur (1- step)))
+                       acc))
+            (reverse acc)))))
+
+(define (star-1 lines)
+  (->> lines
+       (map read-instruction)
+       (signal-history)
+       (every-n-from 20 40)
+       (sum)))
