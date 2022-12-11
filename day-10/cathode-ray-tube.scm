@@ -26,7 +26,15 @@
 
 (define (tests)
   (in-test-suite ("Day 10: Cathode-Ray Tube")
-    (test-equal (star-1 (second test-inputs)) 13140)))
+    (test-equal (star-1 (second test-inputs)) 13140)
+    (test-equal (star-2 (second test-inputs))
+      "##..##..##..##..##..##..##..##..##..##..
+###...###...###...###...###...###...###.
+####....####....####....####....####....
+#####.....#####.....#####.....#####.....
+######......######......######......####
+#######.......#######.......#######.....
+")))
 
 
 
@@ -64,3 +72,31 @@
        (signal-history)
        (every-n-from 20 40)
        (sum)))
+
+
+
+(define (in-sprite? sprite-position pixel-position)
+  (<= (1- sprite-position)
+      pixel-position
+      (1+ sprite-position)))
+
+(define empty-grid-char (make-parameter #\.))
+(define (render-line line)
+  (map (λ (x pixel)
+         (if (in-sprite? x pixel) #\# (empty-grid-char)))
+       line
+       (iota (length line))))
+
+(define (render-frame signal-history)
+  (apply string-append
+         (map (λ (line)
+                (format #f "~a~%" (list->string (render-line line))))
+              (take (segment 40 signal-history) 6))))
+
+;;; Can't really get the true answer from this, since I don't know of any
+;;; guile bindings to a OCR, nor think an OCR would handle weird ASCII art well
+(define (star-2 lines)
+  (->> lines
+       (map read-instruction)
+       (signal-history)
+       (render-frame)))
