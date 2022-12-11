@@ -107,3 +107,13 @@ The resulting function is properly short-circuiting, like normal and."
 (define-public (repeat n thunk)
   (for-each (λ (_ignore) (thunk))
             (iota n)))
+
+(define* (find-duplicates lst)
+  (define duplicates-sum
+    (match-lambda*
+      ((item #(duplicates seen))
+       (if (member item seen)
+           (vector (lset-adjoin equal? duplicates item) seen)
+           (vector duplicates (cons item seen))))))
+  (vector-ref (fold duplicates-sum #(() ()) lst)
+              0))
