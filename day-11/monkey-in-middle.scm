@@ -4,6 +4,10 @@
   #:use-module (ice-9 match)
   #:use-module (ice-9 format)
   #:use-module (srfi srfi-1)
+  #:use-module (srfi srfi-9)
+  #:use-module (srfi srfi-9 gnu)
+  #:use-module (srfi srfi-17)
+  #:use-module (srfi srfi-43)
   #:use-module (pipe)
   #:use-module (oop goops))
 
@@ -39,7 +43,8 @@
 
 (define (tests)
   (in-test-suite ("Day 11: Monkey in the Middle")
-    (test-equal (star-1 test-input) 10605)))
+    (test-equal (star-1 test-input) 10605)
+    (test-equal (star-2 test-input) 2713310158)))
 
 
 
@@ -72,8 +77,7 @@
 (define (parse-monkey-test line)
   (match (string-split (string-trim line) #\space)
     (("Test:" "divisible" "by" (= string->number (? number? num)))
-     (lambda (worry)
-       (zero? (modulo worry num))))))
+     num)))
 
 (define (parse-monkey-throw line case)
   (match (string-split (string-trim line) #\space)
@@ -83,105 +87,93 @@
 
 (define (parse-monkey-action lines)
   (match-let* (((test when-true when-false) lines)
-               (pred (parse-monkey-test test))
+               (divisor (parse-monkey-test test))
                (true-recv (parse-monkey-throw when-true "true:"))
                (false-recv (parse-monkey-throw when-false "false:")))
-    (list pred true-recv false-recv)))
+    (list divisor true-recv false-recv)))
 
-(define (parse-monkey-entry game entry)
+(define (parse-monkey-entry entry)
   (match entry
-    ((number starting-items operation test ...)
-     (apply add-monkey! game
-            (parse-monkey-number number)
+    ((_number starting-items operation test ...)
+     (apply make-monkey
             (parse-monkey-items starting-items)
             (parse-monkey-operation operation)
+            0
             (parse-monkey-action test)))))
 
-(define-class <monkey> ()
-  (items #:accessor items
-         #:init-keyword #:items
-         #:init-form '())
-  (worry-change #:getter worry-change
-                #:init-keyword #:worry-change)
-  (test #:getter test
-        #:init-keyword #:test)
-  (true-recv  #:accessor true-recv
-              #:init-form #f)
-  (false-recv #:accessor false-recv
-              #:init-form #f)
-  (inspections #:accessor inspections
-               #:init-form 0))
+(define-record-type <monkey>
+  (make-monkey items worry-change
+               inspections
+               test-divisor true-recv false-recv)
+  monkey?
+  (items monkey-items set-monkey-items!)
+  (worry-change monkey-worry-change)
+  (test-divisor monkey-test-divisor)
+  (true-recv monkey-true-recv)
+  (false-recv monkey-false-recv)
+  (inspections monkey-inspections set-monkey-inspections!))
 
-(define-method (catch-item! (monkey <monkey>) num)
-  (set! (items monkey) (append (items monkey) (list num))))
-
-(define-method (do-turn! (monkey <monkey>))
-  (define (handle-item item)
-    (set! (inspections monkey) (1+ (inspections monkey)))
-    (let* ((worry ((worry-change monkey) item))
-           (worry (floor/ worry 3)))
-      (catch-item! (if ((test monkey) worry)
-                       (true-recv  monkey)
-                       (false-recv monkey))
-                   worry)))
-  (let ((items_ (items monkey)))
-    (set! (items monkey) '())
-    (for-each handle-item items_)))
-
-(define-method (write (monkey <monkey>) port)
-  (format port "#<monkey items: ~a inspections: ~a>" (items monkey) (inspections monkey)))
+(set-record-type-printer! <monkey>
+                          (λ (m port)
+                            (format port "#<monkey items: ~a test-divisor: ~a inspections ~a>"
+                                    (monkey-items m)
+                                    (monkey-test-divisor m)
+                                    (monkey-inspections m))))
 
 (define-class <game> ()
-  (monkeys      #:accessor monkeys
-                #:init-form (make-hash-table))
-  (dependencies #:accessor dependencies
-                #:init-form (make-hash-table)))
+  (monkeys #:getter monkeys
+           #:init-keyword #:monkeys)
+  (mod-by  #:getter mod-by
+           #:init-keyword #:mod-by))
 
-(define-method (add-monkey! (game <game>) number items operation test when-true when-false)
-  (define (handle-dependencies n when-true when-false)
-    (let ((new (hash-ref (monkeys game) n)))
-      ;; If already constructed, just add the receiver
-      (when-let (when-true-recv (hash-ref (monkeys game) when-true))
-          (set! (true-recv new) when-true-recv))
-      (when-let (when-false-recv (hash-ref (monkeys game) when-false))
-          (set! (false-recv new) when-false-recv))
-      ;; Add dependencies, for if not constructed (or replaced)
-      (hash-mod! (dependencies game)
-                 when-true  (λ (val)
-                              (if val (cons (list #t new) val)
-                                  (list (list #t new))))
-                 when-false (λ (val)
-                              (if val (cons (list #f new) val)
-                                  (list (list #f new)))))
-      ;; Resolve dependencies waiting on us
-      (when-let (dep-on (hash-ref (dependencies game) n))
-          (for-each (match-lambda ((#t to) (set! (true-recv  to) new))
-                                  ((#f to) (set! (false-recv to) new)))
-                    dep-on))))
-  (let ((new (make <monkey> #:items items #:worry-change operation #:test test)))
-    (hash-set! (monkeys game) number new)
-    (handle-dependencies number when-true when-false)
-    new))
+(define (make-game monkeys)
+  (make <game> #:monkeys (list->vector monkeys)
+        #:mod-by (prod (map monkey-test-divisor monkeys))))
+
+(define-method (do-turn! monkey (game <game>))
+  (define (process-item item)
+    (let* ((worry ((worry-reduction)
+                   ((monkey-worry-change monkey) item)))
+           (recv (vector-ref (monkeys game)
+                             (if (zero? (modulo worry (monkey-test-divisor monkey)))
+                                 (monkey-true-recv monkey)
+                                 (monkey-false-recv monkey)))))
+      (set-monkey-items! recv
+                         (cons (modulo worry (mod-by game))
+                               (monkey-items recv)))
+      (set-monkey-inspections! monkey (1+ (monkey-inspections monkey)))))
+  (for-each process-item
+            (monkey-items monkey))
+  (set-monkey-items! monkey '()))
 
 (define-method (do-turn! (game <game>))
-  (for-each (λ (idx) (do-turn! (hash-ref (monkeys game) idx)))
-            (sort (hash-table-keys (monkeys game)) <)))
+  (vector-for-each (λ (i m) (do-turn! m game))
+                   (monkeys game)))
 
-(define-method (monkey-inspections (game <game>))
-  (hash-map->list (λ (key val) (cons key (inspections val)))
-                  (monkeys game)))
+(define-method (inspections (game <game>))
+  (map monkey-inspections
+       (vector->list (monkeys game))))
 
 (define-method (write (game <game>) port)
   (format port "#<monkeys~{ ~a~}>"
-          (map (λ (idx) (list idx (hash-ref (monkeys game) idx)))
-               (sort (hash-table-keys (monkeys game)) <))))
+          (vector->list (vector-map list (monkeys game)))))
 
 (define (monkey-business game)
-  (prod (take (sort (map cdr (monkey-inspections game)) >) 2)))
+  (prod (take (sort (inspections game) >) 2)))
 
 (define (star-1 lines)
-  (let ((game (make <game>)))
-    (for-each (curry parse-monkey-entry game)
-              (split-monkey-entries lines))
-    (repeat 20 (λ () (do-turn! game)))
+  (monkey-business-after-n-turns 20 lines))
+
+
+
+(define worry-reduction (make-parameter (λ (worry) (floor/ worry 3))))
+
+(define (star-2 lines)
+  (parameterize ((worry-reduction identity))
+    (monkey-business-after-n-turns 10000 lines)))
+
+(define (monkey-business-after-n-turns n lines)
+  (let ((game (make-game (map parse-monkey-entry
+                              (split-monkey-entries lines)))))
+    (repeat n (λ () (do-turn! game)))
     (monkey-business game)))
