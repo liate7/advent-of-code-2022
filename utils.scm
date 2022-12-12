@@ -108,7 +108,7 @@ The resulting function is properly short-circuiting, like normal and."
   (for-each (λ (_ignore) (thunk))
             (iota n)))
 
-(define* (find-duplicates lst)
+(define-public (find-duplicates lst)
   (define duplicates-sum
     (match-lambda*
       ((item #(duplicates seen))
@@ -117,3 +117,22 @@ The resulting function is properly short-circuiting, like normal and."
            (vector duplicates (cons item seen))))))
   (vector-ref (fold duplicates-sum #(() ()) lst)
               0))
+
+
+(define-public (list-split lst pred)
+  (define (splitter-sum val acc)
+    (if (pred val)
+        (cons* '() (reverse (car acc)) (cdr acc))
+        (cons (cons val (car acc)) (cdr acc))))
+  (reverse (fold splitter-sum '(()) lst)))
+
+(define-public (hash-mod! table key proc . rest)
+  (hash-set! table key
+               (proc (hash-ref table key)))
+  (if (null? rest) table
+      (apply hash-mod! table rest)))
+
+(define-public (hash-table-keys table)
+  (hash-fold (λ (key _vals acc) (cons key acc))
+             '()
+             table))
