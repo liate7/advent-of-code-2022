@@ -92,15 +92,6 @@
                (false-recv (parse-monkey-throw when-false "false:")))
     (list divisor true-recv false-recv)))
 
-(define (parse-monkey-entry entry)
-  (match entry
-    ((_number starting-items operation test ...)
-     (apply make-monkey
-            (parse-monkey-items starting-items)
-            (parse-monkey-operation operation)
-            0
-            (parse-monkey-action test)))))
-
 (define-record-type <monkey>
   (make-monkey items worry-change
                inspections
@@ -112,6 +103,15 @@
   (true-recv monkey-true-recv)
   (false-recv monkey-false-recv)
   (inspections monkey-inspections set-monkey-inspections!))
+
+(define (parse-monkey-entry entry)
+  (match entry
+    ((_number starting-items operation test ...)
+     (apply make-monkey
+            (parse-monkey-items starting-items)
+            (parse-monkey-operation operation)
+            0
+            (parse-monkey-action test)))))
 
 (set-record-type-printer! <monkey>
                           (λ (m port)
