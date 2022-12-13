@@ -1,5 +1,6 @@
 (define-module (utils)
   #:use-module (ice-9 arrays)
+  #:use-module (ice-9 control)
   #:use-module (ice-9 format)
   #:use-module (ice-9 ftw)
   #:use-module (ice-9 match)
@@ -118,7 +119,6 @@ The resulting function is properly short-circuiting, like normal and."
   (vector-ref (fold duplicates-sum #(() ()) lst)
               0))
 
-
 (define-public (list-split lst pred)
   (define (splitter-sum val acc)
     (if (pred val)
@@ -136,3 +136,23 @@ The resulting function is properly short-circuiting, like normal and."
   (hash-fold (λ (key _vals acc) (cons key acc))
              '()
              table))
+
+(define-public (array-index pred array)
+  (call/ec
+   (λ (ret)
+     (for-each (λ (idx)
+                 (when (pred (array-idx-ref array idx))
+                   (ret idx)))
+               (array-indices array)))))
+
+(define-public (tuples-in lst . lsts)
+  (define (tuples-sum item res)
+    (append (map (curry cons item)
+                 (apply tuples-in lsts))
+            res))
+  (if (null? lsts)
+      (map list lst)
+      (fold tuples-sum '() lst)))
+
+(define-public (array-idx-ref array idx)
+  (apply array-ref array idx))
