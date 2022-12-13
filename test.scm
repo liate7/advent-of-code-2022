@@ -24,4 +24,5 @@
 
 (define (run-module-tests module)
   (when-let (tests-var (module-variable module 'tests))
-      ((variable-ref tests-var))))
+      (unless (false-if-exception ((variable-ref tests-var)))
+        (format #t "Exception in ~a's tests~%" module))))
