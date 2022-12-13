@@ -23,7 +23,8 @@
 
 (define (tests)
   (in-test-suite ("Day 12: Hill Climbing Algorithm")
-    (test-equal (star-1 test-input) 31)))
+    (test-equal (star-1 test-input) 31)
+    (test-equal (star-2 test-input) 29)))
 
 
 
@@ -32,23 +33,39 @@
                       (remove string-null? lines))))
 
 (define-immutable-record-type <hill-climb>
-  (%make-hill-climb grid queue marked end-idx)
+  (%make-hill-climb grid queue marked end? should-enqueue?)
   hill-climb?
   (grid hill-grid)
   (queue hill-queue set-hill-queue)
   (marked hill-marked set-hill-marked)
-  (end-idx hill-end))
+  (end? hill-end-pred)
+  (should-enqueue? hill-enqueue-pred))
+
+(define (make-hill grid start end? enqueue?)
+  (%make-hill-climb grid
+                    (enqueue (make-queue)
+                             (list start))
+                    (list start)
+                    end?
+                    enqueue?))
+
+(define (reachable? hill from to)
+  (>= (1+ (char->height (array-idx-ref (hill-grid hill) from)))
+      (char->height (array-idx-ref (hill-grid hill) to))))
+
+(define (hill-marked? hill-climb idx)
+  (member idx (hill-marked hill-climb)))
 
 (define (make-hill-climb grid)
-  (let ((start (array-index (curry equal? #\S)
-                            grid))
-        (end   (array-index (curry equal? #\E)
-                            grid)))
-    (%make-hill-climb grid
-                      (enqueue (make-queue)
-                               (list start))
-                      (list start)
-                      end)))
+  (define (end? idx)
+    (equal? (array-idx-ref grid idx) #\E))
+  (define (enqueue? hill from to)
+    (and (reachable? hill from to)
+         (not (hill-marked? hill to))))
+  (make-hill grid
+             (array-index (curry equal? #\S) grid)
+             end?
+             enqueue?))
 
 (set-record-type-printer!
  <hill-climb>
@@ -57,9 +74,6 @@
            (map (λ (path) (list (car path) (length (cdr path))))
                 (queue->list (hill-queue hill)))
            (hill-marked hill))))
-
-(define (hill-marked? hill-climb idx)
-  (member idx (hill-marked hill-climb)))
 
 (define (char->height char)
   (- (char->integer
@@ -87,18 +101,14 @@
 (define (mark-all marked idxen)
   (apply lset-adjoin equal? marked idxen))
 
-(define (should-enqueue? hill from to)
-  (and (>= (1+ (char->height (array-idx-ref (hill-grid hill) from)))
-           (char->height (array-idx-ref (hill-grid hill) to)))
-       (not (hill-marked? hill to))))
-
 (define (hill-climb-step hill-climb)
   (when (queue-empty? (hill-queue hill-climb))
     (error "End is unreachable"))
   (receive (val queue) (dequeue (hill-queue hill-climb))
     (match-let*
         (((idx . path) val)
-         (nexts (filter (curry should-enqueue? hill-climb idx)
+         (nexts (filter (curry (hill-enqueue-pred hill-climb)
+                               hill-climb idx)
                         (array-adjacent-indices (hill-grid hill-climb)
                                                 idx))))
       (values
@@ -113,7 +123,7 @@
 (define (hill-climb-path hill-climb)
   (let rec ((hill hill-climb))
     (receive (hill_ idx path) (hill-climb-step hill)
-      (if (equal? idx (hill-end hill_))
+      (if ((hill-end hill_) idx)
           (cons idx path)
           (rec hill_)))))
 
@@ -121,3 +131,19 @@
   (1- (length
        (hill-climb-path
         (make-hill-climb (read-grid lines))))))
+
+(define (make-hill-descent grid)
+  (define (end? idx)
+    (equal? (array-idx-ref grid idx) #\a))
+  (define (enqueue? hill from to)
+    (and (reachable? hill to from)
+         (not (hill-marked? hill to))))
+  (make-hill grid
+             (array-index (curry equal? #\E) grid)
+             end?
+             enqueue?))
+
+(define (star-2 lines)
+  (1- (length
+       (hill-climb-path
+        (make-hill-descent (read-grid lines))))))
