@@ -156,3 +156,14 @@ The resulting function is properly short-circuiting, like normal and."
 
 (define-public (array-idx-ref array idx)
   (apply array-ref array idx))
+
+(define-public (list-indexes pred lst . lsts)
+  (let ((first-idx (apply list-index pred lst lsts)))
+    (if first-idx
+        (cons first-idx
+              (map (curry + 1 first-idx)
+                   (apply list-indexes pred
+                          (map (λ (l) (list-cdr-ref l (1+ first-idx)))
+                               (cons lst
+                                     lsts)))))
+        '())))
