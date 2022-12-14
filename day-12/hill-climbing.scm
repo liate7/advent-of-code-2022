@@ -123,7 +123,7 @@
 (define (hill-climb-path hill-climb)
   (let rec ((hill hill-climb))
     (receive (hill_ idx path) (hill-climb-step hill)
-      (if ((hill-end hill_) idx)
+      (if ((hill-end-pred hill_) idx)
           (cons idx path)
           (rec hill_)))))
 
