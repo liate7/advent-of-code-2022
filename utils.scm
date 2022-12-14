@@ -5,6 +5,7 @@
   #:use-module (ice-9 ftw)
   #:use-module (ice-9 match)
   #:use-module (ice-9 textual-ports)
+  #:use-module (ice-9 curried-definitions)
   #:use-module (pipe)
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-43)
@@ -167,3 +168,28 @@ The resulting function is properly short-circuiting, like normal and."
                                (cons lst
                                      lsts)))))
         '())))
+
+(export inclusive-range)
+(define* (inclusive-range from to #:optional (step 1))
+  (let ((n-between (- to from)))
+    (iota (1+ (abs n-between)) from (* (sign n-between) step))))
+
+(export fixed-point)
+(define* (fixed-point proc init #:key (equal equal?) (max-steps 100) (diverged-thunk (const #f)))
+  (let rec ((prev init)
+            (cur (proc init))
+            (steps-remaining max-steps))
+    (cond ((equal prev cur)
+           cur)
+          ((zero? steps-remaining)
+           (diverged-thunk))
+          (else
+           (rec cur (proc cur) (1- steps-remaining))))))
+
+(define-public ((juxt . procs) . vals)
+  (map (λ (proc) (apply proc vals)) procs))
+
+(define-public (array-idx-set arr obj idx)
+  (let ((ret (array-copy arr)))
+    (apply array-set! ret obj idx)
+    ret))
