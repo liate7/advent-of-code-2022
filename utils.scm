@@ -138,12 +138,12 @@ The resulting function is properly short-circuiting, like normal and."
              table))
 
 (define-public (array-index pred array)
-  (call/ec
-   (λ (ret)
-     (for-each (λ (idx)
-                 (when (pred (array-idx-ref array idx))
-                   (ret idx)))
-               (array-indices array)))))
+  (let/ec ret
+   (for-each (λ (idx)
+               (when (pred (array-idx-ref array idx))
+                 (ret idx)))
+             (array-indices array))
+   #f))
 
 (define-public (tuples-in lst . lsts)
   (define (tuples-sum item res)
