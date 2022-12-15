@@ -118,7 +118,7 @@
          (grid (make-grid rocks start)))
     (let rec ((grains 0))
       (if (drop-sand! grid start)
-          grains
+          (values grains grid)
           (rec (1+ grains))))))
 
 (define (make-grid-with-floor rock-points from)
@@ -158,3 +158,25 @@
                                    (remove string-null? lines)))))
          (grid (make-grid-with-floor rocks start)))
     (count-reachable-from grid start)))
+
+(define* (grid->pgm grid port #:key (air 9) (sand 5) (rock 0))
+  (define mapper
+    (match-lambda
+      (#f air)
+      ('sand sand)
+      ('rock rock)))
+  (define dimension->integer
+    (match-lambda
+      ((? number? num) num)
+      ((min max) (1+ (- max min)))))
+  (let* ((transposed (transpose-array grid 1 0))
+         (dimensions (array-dimensions transposed)))
+    (format port "P2~%~
+                  ~a ~a~%~
+                  ~a~%~
+                  ~{~{~a ~}~%~}"
+            (dimension->integer (second dimensions))
+            (dimension->integer (first dimensions))
+            (max air sand rock)
+            (map (curry map mapper)
+                 (array->list transposed)))))
