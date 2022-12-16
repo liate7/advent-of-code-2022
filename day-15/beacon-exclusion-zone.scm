@@ -1,9 +1,14 @@
 (define-module (day-15 beacon-exclusion-zone)
-  #:use-module (tests)
+  #:use-module (test)
   #:use-module (utils)
+  #:use-module (ice-9 arrays)
   #:use-module (ice-9 match)
+  #:use-module (ice-9 format)
   #:use-module (srfi srfi-1)
-  #:use-module (pipe))
+  #:use-module (srfi srfi-9)
+  #:use-module (srfi srfi-9 gnu)
+  #:use-module (pipe)
+  #:use-module (pfds hamts))
 
 (define test-input
   '("Sensor at x=2, y=18: closest beacon is at x=-2, y=15"
@@ -27,3 +32,93 @@
     (test-equal (star-1 test-input 10) 26)))
 
 
+
+(define-immutable-record-type <point>
+  (make-point x y)
+  point?
+  (x point-x set-point-x)
+  (y point-y set-point-y))
+
+(define (display-point point port)
+  (format port "#<point ~a ~a>"
+          (point-x point)
+          (point-y point)))
+
+(set-record-type-printer! <point> display-point)
+
+(define (read-place str name)
+  (match (string-split (string-trim-right str #\,) #\=)
+    ((name (= string->number (? number? val)))
+     val)))
+
+(define (read-position str prefix)
+  (when (not (string-prefix? prefix str))
+    (error "Wrong prefix: input ~s, should have been ~s" str prefix))
+  (match (remove null? (string-split (substring str (string-length prefix))
+                                     char-set:whitespace))
+    ((_ ... "at" x-loc-str y-loc-str)
+     (make-point (read-place x-loc-str "x")
+                 (read-place y-loc-str "y")))))
+
+(define (read-sensor-report line)
+  (match (string-split line #\:)
+    ((sensor-position closest-beacon)
+     (list (read-position sensor-position "Sensor")
+           (read-position closest-beacon " closest beacon")))
+    (("")
+     '())))
+
+(define (manhattan-distance l r)
+  (match (list l r)
+    ((($ <point> lx ly) ($ <point> rx ry))
+     (+ (abs (- rx lx)) (abs (- ry ly))))
+    (_
+     (error "Type error: ~{~a is not a point. ~}"
+            (remove point? (list l r))))))
+
+(define* (create-beacon-hamt hamt)
+  (define (reverse-sum key val hamt)
+    (hamt-set hamt val key))
+  (hamt-fold reverse-sum (make-hamt-from) hamt))
+
+(define (sensor-too-close? sensor closest place)
+  (<= (manhattan-distance sensor place)
+      (manhattan-distance sensor closest)))
+
+(define (any-sensors-too-close? sensor-closest-beacon place)
+  (define too-close-sum
+    (match-lambda*
+      (((s . b) acc)
+       (if acc acc
+           (and (not (equal? place b))
+                (not (equal? place s))
+                (<= (manhattan-distance s place)
+                    (manhattan-distance s b)))))))
+  (fold too-close-sum #f sensor-closest-beacon))
+
+(define (beacons-sum key val acc)
+  (match-let
+      (((($ <point> key-x key-y)
+         max-x min-x)
+        (cons key acc))
+       (dist (manhattan-distance key val)))
+    (list (max (+ key-x dist) max-x) (min (- key-x dist) min-x))
+    ))
+
+(define (marked-along-y sensor-closest-beacon y)
+  (match-let*
+      (((min-x max-x)
+        (hamt-fold beacons-sum
+                   (list most-negative-fixnum most-positive-fixnum)
+                   sensor-closest-beacon)))
+    (count (curry any-sensors-too-close? (hamt->alist sensor-closest-beacon))
+           (map (λ (x) (make-point x y))
+                (inclusive-range min-x 
+                                 max-x)))))
+
+(define* (star-1 lines #:optional (line 2000000))
+  (let* ((sensor-closest-beacon
+          (->> (map read-sensor-report lines)
+               (concatenate)
+               (apply make-hamt-from))))
+    (marked-along-y sensor-closest-beacon line)))
