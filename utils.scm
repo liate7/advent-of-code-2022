@@ -10,7 +10,8 @@
   #:use-module (pipe)
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-171)
-  #:use-module (srfi srfi-43))
+  #:use-module (srfi srfi-43)
+  #:use-module (srfi srfi-41))
 
 (define-public (flatten lst)
   (list-transduce tflatten rcons lst))
@@ -210,3 +211,14 @@ The resulting function is properly short-circuiting, like normal and."
            (cons* key val acc)))
         '()
         alist))
+
+(export stream-tuples-in)
+(define-stream (stream-tuples-in stream . streams)
+  (define-stream (tuples-sum res item)
+    (stream-append
+     (stream-map (curry cons item)
+                 (apply stream-tuples-in streams))
+     res))
+  (if (null? streams)
+      (stream-map list stream)
+      (stream-fold tuples-sum stream-null stream)))

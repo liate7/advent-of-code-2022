@@ -7,6 +7,7 @@
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-9)
   #:use-module (srfi srfi-9 gnu)
+  #:use-module (srfi srfi-41)
   #:use-module (pipe)
   #:use-module (pfds hamts))
 
@@ -29,7 +30,8 @@
 
 (define (tests)
   (in-test-suite ("Day 15: Beacon Exclusion Zone")
-    (test-equal (star-1 test-input 10) 26)))
+    (test-equal (star-1 test-input 10) 26)
+    (test-equal (star-2 test-input (make-point 20 20)) 56000011)))
 
 
 
@@ -122,3 +124,55 @@
                (concatenate)
                (apply make-hamt-from))))
     (marked-along-y sensor-closest-beacon line)))
+
+(define (beacon-tuning-frequency position)
+  (+ (* (point-x position) 4000000)
+     (point-y position)))
+
+(define (manhattan-circle from radius)
+  (define (all-quadrants pts)
+    (append pts
+            (map (λ (pt)
+                   (set-point-x pt (- (point-x pt))))
+                 pts)
+            (map (λ (pt)
+                   (set-point-y pt (- (point-y pt))))
+                 pts)
+            (map (λ (pt)
+                   (make-point (- (point-x pt))
+                               (- (point-y pt))))
+                 pts)))
+  (map (λ (pt)
+         (make-point (+ (point-x pt) (point-x from))
+                     (+ (point-y pt) (point-y from))))
+       (all-quadrants
+        (map make-point
+             (iota (1+ radius))
+             (iota (1+ radius) (1+ radius) -1)))))
+
+(define (ineligible-pos? sensors pt)
+  (any (match-lambda
+         ((s . dist)
+          (<= (manhattan-distance s pt)
+              dist)))
+       sensors))
+
+(define (distress-beacon-position sensors size)
+  (define (in-area? pt)
+    (and (<= 0 (point-x pt) (point-x size))
+         (<= 0 (point-y pt) (point-y size))))
+  (match-let rec ((((s . dist) rest ...) sensors))
+    (if-let (pos (find (negate (curry ineligible-pos? sensors))
+                       (filter in-area?
+                               (manhattan-circle s dist))))
+            pos
+            (if (null? rest) #f
+                (rec rest)))))
+
+(define* (star-2 lines #:optional (size (make-point 4000000 4000000)))
+  (let* ((sensor-closests
+          (->> (map read-sensor-report lines)
+               (remove null?)
+               (map (juxt first (curry apply manhattan-distance)))
+               (map (curry apply cons)))))
+    (beacon-tuning-frequency (distress-beacon-position sensor-closests size))))
