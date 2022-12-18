@@ -11,7 +11,8 @@
   #:use-module (srfi srfi-1)
   #:use-module (srfi srfi-171)
   #:use-module (srfi srfi-43)
-  #:use-module (srfi srfi-41))
+  #:use-module (srfi srfi-41)
+  #:use-module (pfds queues))
 
 (define-public (flatten lst)
   (list-transduce tflatten rcons lst))
@@ -35,15 +36,25 @@
   "Break up a list in to segments of N, based on `tsegment'"
   (list-transduce (tsegment n) rcons lst))
 
-(define-public (proc-and . procs)
+(define-public (proc-and proc . procs)
   "Returns a predicate which is true if all members of PROCS are true with the inputs.
 
 The resulting function is properly short-circuiting, like normal and."
   (lambda args
-    (let rec ((procs procs))
-      (or (null? procs)
-          (and (apply (car procs) args)
-               (rec (cdr procs)))))))
+    (let rec ((proc proc)
+              (procs procs))
+      (if (null? procs)
+          (apply proc args)
+          (and (apply proc args)
+               (rec (car procs) (cdr procs)))))))
+
+(define-public ((proc-or proc . procs) . args)
+  (let rec ((proc proc)
+            (procs procs))
+    (if (null? procs)
+        (apply proc args)
+        (or (apply proc args)
+            (rec (car procs) (cdr procs))))))
 
 (export if-let)
 (define-syntax-rule (if-let (var form) then else)
@@ -59,10 +70,18 @@ The resulting function is properly short-circuiting, like normal and."
       body ...)))
 
 (define-public (assoc-set alist key val)
-  (alist-cons key val
-              (remove (compose (curry equal? key)
-                               car)
-                      alist)))
+  (let ((k-v (cons key val)))
+    (let rec ((cur alist)
+              (acc '())
+              (found? #f))
+      (cond ((and (null? cur) found?)
+             (reverse acc))
+            ((null? cur)
+             (cons k-v (reverse acc)))
+            ((equal? (caar cur) key)
+             (rec (cdr cur) (cons k-v acc) #t))
+            (else
+             (rec (cdr cur) (cons (car cur) acc) found?))))))
 
 (define-public plist->alist
   (match-lambda
@@ -222,3 +241,40 @@ The resulting function is properly short-circuiting, like normal and."
   (if (null? streams)
       (stream-map list stream)
       (stream-fold tuples-sum stream-null stream)))
+
+(define-public ((arg n) . args)
+  (list-ref args n))
+
+(define*-public (assoc-update! alist key proc #:optional (dflt '()))
+  (assoc-set! alist key
+              (if-let (val (assoc-ref alist key))
+                      (proc val)
+                      (if (null? dflt)
+                          (error "No such key ~a" key)
+                          dflt))))
+
+(define*-public (assoc-update alist key proc #:optional (dflt '()))
+  (assoc-set alist key
+             (if-let (val (assoc-ref alist key))
+                     (proc val)
+                     (if (null? dflt)
+                         (error "No such key ~a" key)
+                         dflt))))
+
+(export memoized-lambda)
+(define-syntax memoized-lambda
+  (syntax-rules (memoized args val)
+    ((_ arglst body ...)
+     (let ((memoized (make-weak-key-hash-table)))
+       (match-lambda*
+         ((and args arglst)
+          (if-let (val (hash-ref memoized args))
+                  val
+                  (let ((val (begin body ...)))
+                    (hash-set! memoized args val)
+                    val))))))))
+
+(define-public (enqueue-all queue items)
+  (fold (λ (item q) (enqueue q item))
+        queue
+        items))
