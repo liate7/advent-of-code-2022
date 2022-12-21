@@ -27,7 +27,8 @@
 
 (define (tests)
   (in-test-suite ("Day 16: Proboscidea Volcanium")
-    (test-equal (star-1 test-input) 1651)))
+    (test-equal (star-1 test-input) 1651)
+    (test-equal (star-2 test-input) 1707)))
 
 
 
@@ -126,9 +127,8 @@
           (apply rec (dijkstra-relax rooms (second cur) (first cur)
                                      heap_ edge-to dist-to))))))
 
-;; I don't understand why this works for the test input =\
 (define (dijkstra-next-to-open rooms from minutes-left)
-  (receive (edges distances) (dijkstra-shortest-path rooms from)
+  (receive (_edges distances) (dijkstra-shortest-path rooms from)
     (map car
          (sort
           (map (λ (p)
@@ -171,27 +171,27 @@
     (if (equal? next from) to
         (path-next shortests from next))))
 
-(define (room-best-action rooms place minutes-left start)
-  (let* ((shortests (shortest-paths rooms place))
-         (dest (first (dijkstra-next-to-open rooms place minutes-left))))
+(define (room-best-action rooms place minutes-left goal)
+  (let* ((shortests (shortest-paths rooms place)))
     (cond ((zero? minutes-left) 'wait)
-          #;((and (> (room-flow-rate (rooms-graph-ref rooms place)))
-                (not (room-open? (rooms-graph-ref rooms place))))
-           'open)
-          ((null? dest) 'wait)
-          ((equal? dest place) 'open)
-          (else (path-next shortests place dest)))))
+          ((null? goal) 'wait)
+          ((equal? goal place) 'open)
+          (else (path-next shortests place goal)))))
 
-(define (rooms-turn rooms place minutes-left start)
+(define (room-opening-score room minutes-left)
+  (if (room-open? room) 0
+      (* (1- minutes-left)
+         (room-flow-rate room))))
+
+(define (rooms-turn rooms place minutes-left goal)
   (if (zero? minutes-left)
       (values rooms 0 place 'wait)
-      (match (room-best-action rooms place minutes-left start)
+      (match (room-best-action rooms place minutes-left goal)
         ('open
          (values (room-open-valve rooms place)
-                 (* (1- minutes-left)
-                    (room-flow-rate (rooms-graph-ref rooms place)))
+                 (room-opening-score (rooms-graph-ref rooms place) minutes-left)
                  place
-                 'open))
+                 (list 'open place)))
         ('wait
          (values rooms 0 place 'wait))
         (path
@@ -204,11 +204,50 @@
             (place start)
             (log '()))
     (if (zero? minutes-left) (values score place (reverse log))
-        (receive (rooms score-added new-place move)
-            (rooms-turn rooms place minutes-left start)
-          (rec rooms (+ score score-added) (1- minutes-left) new-place
-               (cons move
-                     log))))))
+        (receive (rooms score-added new-place to-log)
+            (rooms-turn rooms place minutes-left
+                        (car (dijkstra-next-to-open rooms place minutes-left)))
+          (rec rooms (+ score score-added) (1- minutes-left) new-place (cons to-log log))))))
 
 (define (star-1 lines)
   (rooms-best-score (create-rooms-graph lines)))
+
+(define (tree-insert tree parent item)
+  (let rec ((tree tree))
+    (match tree
+      (((? (curry equal? item) _) children ...)
+       (list parent (cons item children)))
+      (((? (curry equal? parent) _) items ...)
+       (cons* parent item items))
+      ('()
+       (list parent item))
+      ((? (curry equal? parent) _)
+       (list parent item))
+      ((? symbol? ret)
+       ret)
+      ((other items ...)
+       (cons other (map rec items))))))
+
+(define (tree-count pred tree)
+  (let rec ((tree tree))
+    (+ (if (pred tree) 1 0)
+       (if (list? tree)
+           (sum (map rec (cdr tree)))
+           0))))
+
+(define (dijkstra-edges->tree edges)
+  (let rec ((edges (reverse edges))
+            (tree '()))
+    (match edges
+      (() tree)
+      (((to . from) rest ...)
+       (rec rest (tree-insert tree from to))))))
+
+(define (dijkstra-partition-graph rooms start)
+  (let* ((edges (dijkstra-shortest-path rooms start))
+         (tree (dijkstra-edges->tree edges)))
+    ()
+    ))
+
+(define (star-2 lines)
+  (rooms-best-pair-score (create-rooms-graph lines)))
